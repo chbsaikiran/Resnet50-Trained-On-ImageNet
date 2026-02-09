@@ -27,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"using {device} device")
 
 
-model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)
+model = ResNet(Bottleneck, [3, 4, 6, 3],10).to(device)
 print(model)
 
 loss_fn = nn.CrossEntropyLoss()
