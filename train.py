@@ -3,7 +3,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor,Compose,Lambda
+from torch.utils.tensorboard import SummaryWriter
 from model import Bottleneck,ResNet
+from math import sqrt
+import time
 
 transform = Compose([
     ToTensor(),                 # (1, H, W)
@@ -33,46 +36,84 @@ print(model)
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(),lr=1e-3)
 
-def train(dataloader,model,loss_fn,optimizer):
-	size = len(dataloader.dataset)
-	model.train()
-	for batch, (X,y) in enumerate(dataloader):
-		X,y = X.to(device),y.to(device)
-		
-		pred = model(X)
-		loss = loss_fn(pred,y)
-		
-		loss.backward()
-		optimizer.step()
-		optimizer.zero_grad()
-		
-		if(batch % 100 == 0):
-			loss, current = loss.item(), (batch + 1)*len(X)
-			print(f"loss: {loss:>7f}  [{current:5d}/{size:5d}")
+def train(dataloader, model, loss_fn, optimizer, epoch, writer):
+    size = len(dataloader.dataset)
+    model.train()
+    start0 = time.time()
+    start = time.time()
+    for batch, (X, y) in enumerate(dataloader):
+        X, y = X.to(device), y.to(device)
+
+        # Compute prediction error
+        pred = model(X)
+        loss = loss_fn(pred, y)
+
+        # Backpropagation
+        loss.backward()
+        optimizer.step()
+        batch_size = len(X)
+        if batch % 100 == 0:
+            loss, current = loss.item(), (batch + 1) * batch_size
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], {(current/size * 100):>4f}%")
+            step = epoch * size + current
+            writer.add_scalar('training loss',
+                            loss,
+                            step)
+            new_start = time.time()
+            delta = new_start - start
+            start = new_start
+            if batch != 0:
+                print("Done in ", delta, " seconds")
+                remaining_steps = size - current
+                speed = 100 * batch_size / delta
+                remaining_time = remaining_steps / speed
+                print("Remaining time (seconds): ", remaining_time)
+        optimizer.zero_grad()
+    print("Entire epoch done in ", time.time() - start0, " seconds")
 
 
-def test(dataloader,model,loss_fn):
-	size = len(dataloader.dataset)
-	num_batches = len(dataloader)
-	model.eval()
-	test_loss, correct = 0, 0
-	with torch.no_grad():
-		for X,y in dataloader:
-			X,y = X.to(device),y.to(device)
-			pred = model(X)
-			test_loss += loss_fn(pred,y).item()
-			correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-		test_loss = test_loss/num_batches
-		correct = correct/size
-		print(f"Test Accuracy : {100*correct:>0.1f} , Avg Test Loss : {test_loss:>8f}")
+def test(dataloader, model, loss_fn, epoch, writer, train_dataloader, calc_acc5=False):
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    model.eval()
+    test_loss, correct, correct_top5 = 0, 0, 0
+    with torch.no_grad():
+        for X, y in dataloader:
+            X, y = X.to(device), y.to(device)
+            pred = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            if calc_acc5:
+                _, pred_top5 = pred.topk(5, 1, largest=True, sorted=True)
+                correct_top5 += pred_top5.eq(y.view(-1, 1).expand_as(pred_top5)).sum().item()
+    test_loss /= num_batches
+    step = epoch * len(train_dataloader.dataset)
+    if writer != None:
+        writer.add_scalar('test loss',
+                            test_loss,
+                            step)
+    correct /= size
+    correct_top5 /= size
+    if writer != None:
+        writer.add_scalar('test accuracy',
+                            100*correct,
+                            step)
+        if calc_acc5:
+            writer.add_scalar('test accuracy5',
+                            100*correct_top5,
+                            step)
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    if calc_acc5:
+        print(f"Test Error: \n Accuracy-5: {(100*correct_top5):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
+writer = SummaryWriter('runs/' + "training_fashionmnist")
 epochs = 2
 
 for t in range(epochs):
 	print(f"Epoch {t+1} ---------------------\n")
-	train(train_dataloader,model,loss_fn,optimizer)
-	test(test_dataloader,model,loss_fn)
+	train(train_dataloader, model, loss_fn, optimizer, epoch=t, writer=writer)
+	test(test_dataloader, model, loss_fn, t + 1, writer, train_dataloader=train_dataloader, calc_acc5=True)
 
 print("Done!!")
 
