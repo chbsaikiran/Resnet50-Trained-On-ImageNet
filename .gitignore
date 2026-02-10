@@ -6,3 +6,6 @@ data
 runs
 imagenet100
 imagenet5
+*.txt
+*.jpg
+*jpeg
