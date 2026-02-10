@@ -1,0 +1,52 @@
+{  
+  "0": {
+    "wnid": "n02077923",
+    "label": "sea lion",
+    "description": "sea lion"
+  },
+  "1": {
+    "wnid": "n02058221",
+    "label": "albatross",
+    "description": "albatross, mollymawk"
+  },
+  "2": {
+    "wnid": "n02051845",
+    "label": "pelican",
+    "description": "pelican"
+  },
+  "3": {
+    "wnid": "n02037110",
+    "label": "oystercatcher",
+    "description": "oystercatcher, oyster catcher"
+  },
+  "4": {
+    "wnid": "n02028035",
+    "label": "redshank",
+    "description": "redshank, Tringa totanus"
+  },
+  "5": {
+    "wnid": "n01440764",
+    "label": "tench",
+    "description": "tench, Tinca tinca"
+  },
+  "6": {
+    "wnid": "n01443537",
+    "label": "goldfish",
+    "description": "goldfish, Carassius auratus"
+  },
+  "7": {
+    "wnid": "n01484850",
+    "label": "great white shark",
+    "description": "great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias"
+  },
+  "8": {
+    "wnid": "n01491361",
+    "label": "tiger shark",
+    "description": "tiger shark, Galeocerdo cuvieri"
+  },
+  "9": {
+    "wnid": "n01494475",
+    "label": "hammerhead",
+    "description": "hammerhead, hammerhead shark"
+  }
+}
