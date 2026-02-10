@@ -5,3 +5,4 @@ data
 *.onnx
 runs
 imagenet100
+imagenet5
