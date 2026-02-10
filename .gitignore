@@ -4,3 +4,4 @@ data
 *.pth
 *.onnx
 runs
+imagenet100
