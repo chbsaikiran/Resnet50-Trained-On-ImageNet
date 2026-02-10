@@ -1,6 +1,6 @@
 from torchvision.models import resnet18, ResNet18_Weights
 from torchvision.io import decode_image
-from model_resnet18 import BasicBlock,ResNet
+from model import BasicBlock,Bottleneck,ResNet
 import torch
 
 import json
@@ -41,22 +41,22 @@ print(
 torch.save(model, "resnet18_full.pth")
 print("Saved PyTorch Model State to resnet18_full.pth")
 
-# model_new = ResNet(
-#     block=BasicBlock,
-#     layers=[2, 2, 2, 2],
-#     num_classes=1000
-# )
+model_new = ResNet(
+    block=BasicBlock,
+    layers=[2, 2, 2, 2],
+    num_classes=1000
+)
 
-# state_dict = torch.load("resnet18.pth", map_location="cpu")
-# model_new.load_state_dict(state_dict)
+state_dict = torch.load("resnet18.pth", map_location="cpu")
+model_new.load_state_dict(state_dict)
 
-# total_params = sum(p.numel() for p in model_new.parameters())
-# print("Total parameters:", total_params)
+total_params = sum(p.numel() for p in model_new.parameters())
+print("Total parameters:", total_params)
 
-# trainable_params = sum(p.numel() for p in model_new.parameters() if p.requires_grad)
-# print("Trainable parameters:", trainable_params)
+trainable_params = sum(p.numel() for p in model_new.parameters() if p.requires_grad)
+print("Trainable parameters:", trainable_params)
 
-#model_new.eval()
+model_new.eval()
 
 # Step 2: Initialize the inference transforms
 #preprocess = weights.transforms()
