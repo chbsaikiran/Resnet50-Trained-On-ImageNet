@@ -20,7 +20,7 @@ wnid_to_index = {
     for k, v in imagenet_index_map.items()
 }
 
-val_dir = "./imagenet5/val.X"   # <-- change if needed
+val_dir = "./imagenet10/val.X"   # <-- change if needed
 
 preprocess = transforms.Compose([
     transforms.Resize(
