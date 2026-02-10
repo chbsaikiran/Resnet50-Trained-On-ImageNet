@@ -4,8 +4,9 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
+from model import BasicBlock,Bottleneck,ResNet
 
-with open("imagenet_index_to_wnid.json", "r") as f:
+with open("Labels.json", "r") as f:
     imagenet_index_map = json.load(f)
 
 # index (int) -> wnid (str)
@@ -56,7 +57,15 @@ for wnid, local_idx in val_dataset.class_to_idx.items():
     local_to_imagenet_index[local_idx] = wnid_to_index[wnid]
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = torch.load("resnet18_full.pth", map_location=device)
+model = ResNet(
+    block=BasicBlock,
+    layers=[2, 2, 2, 2],
+    num_classes=10
+)
+
+state_dict = torch.load("resnet18_imagenet10.pth", map_location=device)
+model.load_state_dict(state_dict)
+model.to(device)
 model.eval()
 
 correct = 0
