@@ -8,7 +8,7 @@ import numpy as np
 import json
 
 
-device = "cuda"   # change to "cuda" if you have GPU
+device = "cpu"   # change to "cuda" if you have GPU
 
 model = torch.load("resnet18_imagenet10_full.pth", map_location=device)
 model.to(device)
@@ -85,6 +85,9 @@ max_inference_time = 0.0
 total_inference_time = 0.0
 total_frames = 0
 
+output_txt_path = "video_predictions_golden.txt"
+txt_file = open(output_txt_path, "w")
+
 with torch.no_grad():
     while cap.isOpened():
         ret, frame = cap.read()
@@ -115,6 +118,7 @@ with torch.no_grad():
 
         pred_idx = outputs.argmax(dim=1).item()
         label = labels[pred_idx]
+        txt_file.write(f"{frame_id},{pred_idx},{label}\n")
 
         # FPS calculation
         curr_time = time.time()
@@ -150,6 +154,9 @@ if total_frames > 0:
     print(f"Maximum Inference Time : {max_inference_time * 1000:.3f} ms")
     print(f"Min Inference Time     : {min(inference_times) * 1000:.3f} ms")
     print("======================================")
+
+txt_file.close()
+print(f"\nGolden reference saved to: {output_txt_path}")
 
 # cpu inference times:
 # ====== Inference Timing Results ======
