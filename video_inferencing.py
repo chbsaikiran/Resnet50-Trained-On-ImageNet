@@ -10,11 +10,11 @@ import json
 
 device = "cpu"   # change to "cuda" if you have GPU
 
-model = torch.load("resnet18_full.pth", map_location=device)
+model = torch.load("resnet18_imagenet10_full.pth", map_location=device)
 model.to(device)
 model.eval()
 
-with open("imagenet_index_to_wnid.json", "r") as f:
+with open("Labels.json", "r") as f:
     imagenet_index_map = json.load(f)
 
 # Create ordered label list (index 0 → 999)
@@ -75,7 +75,7 @@ def preprocess_opencv(
 
     return torch.from_numpy(img)
 
-cap = cv2.VideoCapture("50_Animals_Name_and_Sound_English_Animals_for_kids_WATRstar_240p.mp4")  # or 0 for webcam
+cap = cv2.VideoCapture("imagenet10_val_video.mp4")  # or 0 for webcam
 
 prev_time = 0
 frame_id = 0
