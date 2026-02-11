@@ -121,8 +121,7 @@ model = ResNet(
     num_classes=10
 )
 
-state_dict = torch.load("resnet18_imagenet10.pth", map_location=device)
-model.load_state_dict(state_dict)
+model = torch.load("resnet18_imagenet10_full.pth", map_location=device)
 model.to(device)
 model.eval()
 
