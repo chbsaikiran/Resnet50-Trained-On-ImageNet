@@ -8,7 +8,7 @@ import numpy as np
 import json
 
 
-device = "cpu"   # change to "cuda" if you have GPU
+device = "cuda"   # change to "cuda" if you have GPU
 
 model = torch.load("resnet18_imagenet10_full.pth", map_location=device)
 model.to(device)
@@ -151,10 +151,19 @@ if total_frames > 0:
     print(f"Min Inference Time     : {min(inference_times) * 1000:.3f} ms")
     print("======================================")
 
+# cpu inference times:
 # ====== Inference Timing Results ======
-# Total Frames Processed : 17196
-# Average Inference Time : 20.885 ms
-# Maximum Inference Time : 87.153 ms
-# Min Inference Time     : 14.134 ms
+# Total Frames Processed : 3900
+# Average Inference Time : 24.958 ms
+# Maximum Inference Time : 57.123 ms
+# Min Inference Time     : 15.376 ms
+# ======================================
+
+# cuda inference times:
+# ====== Inference Timing Results ======
+# Total Frames Processed : 3900
+# Average Inference Time : 2.379 ms
+# Maximum Inference Time : 190.333 ms
+# Min Inference Time     : 2.059 ms
 # ======================================
 
