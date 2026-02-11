@@ -79,6 +79,12 @@ cap = cv2.VideoCapture("50_Animals_Name_and_Sound_English_Animals_for_kids_WATRs
 
 prev_time = 0
 frame_id = 0
+# Timing statistics
+inference_times = []
+max_inference_time = 0.0
+total_inference_time = 0.0
+total_frames = 0
+
 with torch.no_grad():
     while cap.isOpened():
         ret, frame = cap.read()
@@ -95,8 +101,18 @@ with torch.no_grad():
         # Preprocess
         input_tensor = preprocess_opencv(pil_img).unsqueeze(0).to(device)
 
+        start_time = time.perf_counter()
         # Inference
         outputs = model(input_tensor)
+
+        end_time = time.perf_counter()
+        inference_time = end_time - start_time  # seconds
+        # Store statistics
+        inference_times.append(inference_time)
+        total_inference_time += inference_time
+        max_inference_time = max(max_inference_time, inference_time)
+        total_frames += 1
+
         pred_idx = outputs.argmax(dim=1).item()
         label = labels[pred_idx]
 
@@ -126,3 +142,19 @@ with torch.no_grad():
 
 cap.release()
 cv2.destroyAllWindows()
+if total_frames > 0:
+    avg_time = total_inference_time / total_frames
+    print("\n====== Inference Timing Results ======")
+    print(f"Total Frames Processed : {total_frames}")
+    print(f"Average Inference Time : {avg_time * 1000:.3f} ms")
+    print(f"Maximum Inference Time : {max_inference_time * 1000:.3f} ms")
+    print(f"Min Inference Time     : {min(inference_times) * 1000:.3f} ms")
+    print("======================================")
+
+# ====== Inference Timing Results ======
+# Total Frames Processed : 17196
+# Average Inference Time : 20.885 ms
+# Maximum Inference Time : 87.153 ms
+# Min Inference Time     : 14.134 ms
+# ======================================
+
