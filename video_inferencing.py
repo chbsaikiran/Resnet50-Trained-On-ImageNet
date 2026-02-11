@@ -8,7 +8,7 @@ import numpy as np
 import json
 
 
-device = "cpu"   # change to "cuda" if you have GPU
+device = "cuda"   # change to "cuda" if you have GPU
 
 model = torch.load("resnet18_imagenet10_full.pth", map_location=device)
 model.to(device)
@@ -118,7 +118,7 @@ with torch.no_grad():
 
         pred_idx = outputs.argmax(dim=1).item()
         label = labels[pred_idx]
-        txt_file.write(f"{frame_id},{pred_idx},{label}\n")
+        txt_file.write(f"{frame_id},{label}\n")
 
         # FPS calculation
         curr_time = time.time()
