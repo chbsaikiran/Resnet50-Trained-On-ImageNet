@@ -11,3 +11,5 @@ imagenet5
 *jpeg
 imagenet10
 *.mp4
+*.csv
+*.log
