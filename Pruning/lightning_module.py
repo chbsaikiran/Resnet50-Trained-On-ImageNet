@@ -5,16 +5,20 @@ import torch
 import torch.nn as nn
 from losses import distillation_loss
 from pruning import taylor_pruning
+from torch.optim.lr_scheduler import OneCycleLR
 
 
 class PruningDistillationModule(pl.LightningModule):
 
-    def __init__(self, teacher, student, lr=1e-3):
+    def __init__(self, teacher, student, epochs=10,lr=1e-3,pruning_ratio=0.3,len_train_loader = 10):
         super().__init__()
 
         self.teacher = teacher.eval()
         self.student = student
+        self.epochs = epochs
         self.lr = lr
+        self.pruning_ratio = pruning_ratio
+        self.len_train_loader = len_train_loader
 
     def forward(self, x):
         return self.student(x)
@@ -23,7 +27,8 @@ class PruningDistillationModule(pl.LightningModule):
         # Taylor pruning before training
         device = self.device
         train_loader = self.trainer.datamodule.train_dataloader()
-        taylor_pruning(self.student, train_loader, device)
+        
+        taylor_pruning(self.student, train_loader, device,self.pruning_ratio)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -60,9 +65,14 @@ class PruningDistillationModule(pl.LightningModule):
             lr=self.lr
         )
 
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        scheduler = OneCycleLR(
             optimizer,
-            T_max=50
+            max_lr=self.lr,
+            steps_per_epoch=self.len_train_loader,
+            epochs=self.epochs,
+            pct_start=0.3,
+            anneal_strategy='linear'
         )
+
 
         return [optimizer], [scheduler]

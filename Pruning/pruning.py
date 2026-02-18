@@ -22,12 +22,30 @@ def magnitude_pruner(model, pruning_ratio=0.1):
     pruner.step()
     return model
 
+def get_ignored_layers(model):
+    ignored_layers = []
+
+    for name, module in model.named_modules():
+
+        # Skip first conv layer
+        if name == "conv1":
+            ignored_layers.append(module)
+
+        # Skip final fully connected layer
+        if isinstance(module, nn.Linear):
+            ignored_layers.append(module)
+
+        # Skip downsample layers in ResNet
+        if "downsample" in name:
+            ignored_layers.append(module)
+
+    return ignored_layers
 
 def taylor_pruning(model, train_loader, device, pruning_ratio=0.1):
 
     example_input = torch.randn(1, 3, 224, 224).to(device)
     imp = tp.importance.TaylorImportance()
-    ignored_layers = [model.fc]
+    ignored_layers = get_ignored_layers(model)
 
     pruner = tp.pruner.MagnitudePruner(
         model,

@@ -13,3 +13,4 @@ imagenet10
 *.mp4
 *.csv
 *.log
+lightning_logs
