@@ -53,46 +53,51 @@ class ImageNet10(ImageFolder):
             if self.classes[label] in wnid_map
         ]
 
-def find_lr(model, train_loader, criterion, optimizer, device):
+def find_lr(model, train_loader, criterion, optimizer, device,
+            start_lr=1e-7, end_lr=1, num_iters=100):
+
     model.train()
+    
     lrs = []
     losses = []
+    
+    # Reset optimizer lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = start_lr
 
-    min_lr = 1e-6
-    max_lr = 1
-    num_steps = len(train_loader)
-    print(f"Finding LR over {num_steps} steps...")
+    lr_mult = (end_lr / start_lr) ** (1/num_iters)
+    
+    iterator = iter(train_loader)
+    
+    for i in range(num_iters):
+        try:
+            inputs, targets = next(iterator)
+        except StopIteration:
+            iterator = iter(train_loader)
+            inputs, targets = next(iterator)
 
-    for i, (inputs, labels) in enumerate(train_loader):
-
-        if i >= num_steps:
-            break
-
-        # Exponential LR increase
-        lr = min_lr * (max_lr / min_lr) ** (i / num_steps)
-
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-
-        inputs, labels = inputs.to(device), labels.to(device)
+        inputs, targets = inputs.to(device), targets.to(device)
 
         optimizer.zero_grad()
         outputs = model(inputs)
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs, targets)
+
         loss.backward()
         optimizer.step()
 
-        lrs.append(lr)
+        lrs.append(optimizer.param_groups[0]['lr'])
         losses.append(loss.item())
 
-    plt.plot(lrs, losses)
-    plt.xscale('log')
-    plt.xlabel('Learning Rate')
-    plt.ylabel('Loss')
-    plt.title('LR Finder')
-    plt.show()
+        # Increase LR
+        for param_group in optimizer.param_groups:
+            param_group['lr'] *= lr_mult
+
+        # Stop if loss explodes
+        if loss.item() > 10:
+            break
 
     return lrs, losses
+
 
 
 def load_full_model(path, device):
@@ -161,5 +166,8 @@ train_loader = DataLoader(train_dataset,
                             pin_memory=True
                         )
 lrs, losses = find_lr(student, train_loader, criterion, optimizer, device)
-best_lr = lrs[losses.index(min(losses))]
-print(f"Optimal LR: {best_lr}")
+plt.plot(lrs, losses)
+plt.xscale("log")
+plt.xlabel("Learning Rate")
+plt.ylabel("Loss")
+plt.show()
