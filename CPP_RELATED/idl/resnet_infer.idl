@@ -1,0 +1,15 @@
+#include "AEEStdDef.idl"
+
+interface resnet_infer {
+
+    AEEResult init(in sequence<char> model_path);
+
+    AEEResult deinit();
+
+    AEEResult set_param(in long param_id, in long value);
+
+    AEEResult get_param(in long param_id, rout long value);
+
+    AEEResult process(in sequence<octet> input_data,
+                      rout sequence<octet> output_data);
+};

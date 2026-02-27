@@ -49,9 +49,19 @@ Training, fine-tuning, pruning, and deploying ResNet18 on a 10-class subset of I
 │   ├── model.py                    # ResNet architecture (copy)
 │   └── find_lr.py                  # Learning rate finder
 │
-├── CPP_RELATED/                    # C++ deployment via ONNX Runtime
-│   ├── video_infer_x86.cpp         # Video inference in C++
-│   └── run.sh                      # Build and run script
+├── CPP_RELATED/                    # C++ deployment (x86 + Snapdragon DSP)
+│   ├── video_infer_x86.cpp         # x86 video inference (ONNX Runtime)
+│   ├── run.sh                      # x86 build and run script
+│   ├── idl/
+│   │   └── resnet_infer.idl        # FastRPC interface definition
+│   ├── inc/
+│   │   └── resnet_infer.h          # Shared header (interface + param IDs)
+│   ├── dsp/
+│   │   └── resnet_infer_imp.cpp    # DSP-side implementation (QNN backend)
+│   ├── arm/
+│   │   └── arm_wrapper.cpp         # ARM-side host (preprocessing + display)
+│   ├── build_dsp.sh                # Build libresnet_infer_skel.so for DSP
+│   └── build_arm.sh                # Build arm_wrapper for ARM
 │
 ├── imagenet10/                     # Dataset (10-class ImageNet subset)
 │   ├── train.X/                    # Training images organized by wnid
@@ -263,6 +273,118 @@ Requirements:
 - ONNX Runtime C++ SDK (tested with v1.24.2)
 - OpenCV 4.x with `pkg-config` support
 - g++ with C++17 support
+
+### 9. Snapdragon DSP Deployment (FastRPC)
+
+Run inference on the Hexagon DSP of a Snapdragon board. The ARM processor handles video capture, preprocessing, and display. The DSP handles model inference. Communication between them uses Qualcomm FastRPC.
+
+#### Architecture
+
+```
+ARM (Apps Processor)                    DSP (Hexagon)
+┌──────────────────────┐    FastRPC     ┌──────────────────────────┐
+│  arm_wrapper.cpp     │◄──────────────►│  resnet_infer_imp.cpp    │
+│                      │                │                          │
+│  - OpenCV capture    │   ION buffer   │  - QNN model execution   │
+│  - Preprocess frame  │──────────────► │  - init / process /      │
+│  - Display results   │                │    get_param / set_param  │
+│                      │ ◄───────────── │    / deinit               │
+│  Links:              │   ION buffer   │                          │
+│  resnet_infer_stub.c │                │  Links:                  │
+│  libadsprpc.so       │                │  resnet_infer_skel.c     │
+│  librpcmem.so        │                │  libQnnHtp.so            │
+└──────────────────────┘                └──────────────────────────┘
+```
+
+#### Interface Functions
+
+| Function    | Description                                      |
+|-------------|--------------------------------------------------|
+| `init`      | Load QNN model, allocate DSP resources            |
+| `deinit`    | Free all DSP resources                            |
+| `set_param` | Set runtime parameter (e.g. confidence threshold) |
+| `get_param` | Query model/runtime parameter                     |
+| `process`   | Run inference on one preprocessed CHW float tensor |
+
+#### Prerequisites
+
+- **Hexagon SDK** (v4.x or v5.x) with `qaic` IDL compiler
+- **QNN SDK** (Qualcomm AI Engine Direct)
+- **Android NDK** for cross-compiling the ARM binary
+- **OpenCV** cross-compiled for aarch64-android
+
+#### Step 1: Convert ONNX Model to QNN Format
+
+```bash
+# Convert ONNX to QNN C++ model
+qnn-onnx-converter \
+    --input_network resnet18_imagenet10.onnx \
+    --output_path   resnet18_imagenet10.cpp
+
+# Generate context binary for Hexagon
+qnn-context-binary-generator \
+    --model resnet18_imagenet10.bin \
+    --backend libQnnHtp.so \
+    --output_dir ./qnn_output
+```
+
+The resulting `.bin` file is what `init()` loads on the DSP.
+
+#### Step 2: Build the DSP Shared Library
+
+Edit `build_dsp.sh` to set your SDK paths:
+
+```bash
+export HEXAGON_SDK_ROOT=/path/to/hexagon/sdk
+export QNN_SDK_ROOT=/path/to/qnn/sdk
+export HEXAGON_ARCH=v68    # v68 for SM8350+, v73 for SM8550+
+```
+
+```bash
+cd CPP_RELATED
+./build_dsp.sh
+```
+
+This runs `qaic` on the IDL to generate stub/skel code, then cross-compiles the DSP implementation into `libresnet_infer_skel.so`.
+
+#### Step 3: Build the ARM Wrapper
+
+Edit `build_arm.sh` to set your NDK and OpenCV paths:
+
+```bash
+export NDK_ROOT=/path/to/android-ndk
+export OPENCV_DIR=/path/to/opencv-android/sdk/native
+```
+
+```bash
+./build_arm.sh
+```
+
+This compiles the ARM wrapper and links it against the FastRPC stub, `libadsprpc.so`, and `librpcmem.so`.
+
+#### Step 4: Deploy to Device
+
+```bash
+# Push DSP library
+adb push build_dsp/libresnet_infer_skel.so /vendor/lib/rfsa/dsp/
+
+# Push ARM binary, model, and video
+adb push build_arm/arm_wrapper /data/local/tmp/
+adb push qnn_output/resnet18_imagenet10.bin /data/local/tmp/
+adb push imagenet10_val_video.mp4 /data/local/tmp/
+```
+
+#### Step 5: Run
+
+```bash
+adb shell 'cd /data/local/tmp && \
+    export LD_LIBRARY_PATH=/vendor/lib64:$LD_LIBRARY_PATH && \
+    ./arm_wrapper resnet18_imagenet10.bin imagenet10_val_video.mp4'
+```
+
+The wrapper accepts two optional arguments:
+1. Path to the QNN context binary (default: `/data/local/tmp/resnet18_imagenet10.bin`)
+2. Path to the video file (default: `/data/local/tmp/imagenet10_val_video.mp4`)
 
 ## Model Architecture
 
