@@ -2,7 +2,7 @@
 
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from data_module import ImageNetDataModule
 from model_module import ResNet18Lightning
 
@@ -43,11 +43,19 @@ def main():
         save_top_k=1
     )
 
+    early_stop_callback = EarlyStopping(
+        monitor="val_loss",
+        mode="min",
+        patience=3,
+        min_delta=0.001,
+        verbose=True
+    )
+
     trainer = pl.Trainer(
-        max_epochs=10,
+        max_epochs=20,
         accelerator="auto",
         devices=1,
-        callbacks=[checkpoint_callback]
+        callbacks=[checkpoint_callback, early_stop_callback]
     )
 
     trainer.fit(model, datamodule=data_module)
