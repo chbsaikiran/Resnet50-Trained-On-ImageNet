@@ -1,0 +1,262 @@
+================================================================================
+  SNAPDRAGON DSP DEVELOPMENT TOOLS – DOWNLOAD LINKS & INSTALLATION GUIDE
+  Target: Ubuntu Linux (22.04 LTS recommended)
+================================================================================
+
+
+================================================================================
+1. TOOLS OVERVIEW
+================================================================================
+
+You need four tools to build and run code on the Hexagon DSP:
+
+  Tool                          Purpose
+  ----------------------------  -----------------------------------------------
+  Qualcomm Package Manager 3    Package manager to download Qualcomm SDKs
+  Hexagon SDK (5.x)             DSP toolchain, FastRPC libs, qaic IDL compiler
+  QNN SDK (AI Engine Direct)    Neural network runtime for Hexagon DSP
+  Android NDK                   ARM cross-compiler for the host (apps) processor
+
+
+================================================================================
+2. DOWNLOAD LINKS
+================================================================================
+
+  Tool                  URL
+  --------------------  -------------------------------------------------------
+  QPM3 (Package Mgr)   https://qpm.qualcomm.com/#/main/home
+  Hexagon SDK           https://www.qualcomm.com/developer/software/hexagon-npu-sdk
+                        (also available via QPM3 after login)
+  QNN SDK               https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk
+  Android NDK           https://developer.android.com/ndk/downloads
+
+  NOTE: Qualcomm tools require a free Qualcomm Developer account.
+        Register at: https://myaccount.qualcomm.com/signup
+
+
+================================================================================
+3. INSTALL QUALCOMM PACKAGE MANAGER 3 (QPM3)
+================================================================================
+
+QPM3 is required to download and manage all Qualcomm SDKs.
+
+  IMPORTANT: Use QPM version 3, NOT version 2.
+             QPM2 has broken dependencies (libgnome-keyring0) on Ubuntu 20.04+.
+
+  3.1  Go to https://qpm.qualcomm.com/#/main/home
+  3.2  Log in with your Qualcomm Developer account
+  3.3  Download QPM3 for Linux (.deb package)
+  3.4  Install:
+
+         sudo dpkg -i qpm3_<version>.deb
+         sudo apt-get install -f          # fix any missing dependencies
+
+  3.5  Verify:
+
+         qpm-cli --version
+
+
+================================================================================
+4. INSTALL HEXAGON SDK
+================================================================================
+
+The Hexagon SDK provides:
+  - hexagon-clang / hexagon-clang++  (DSP cross-compiler)
+  - qaic                              (IDL compiler for FastRPC)
+  - FastRPC stub/skel libraries
+  - rpcmem (ION shared memory allocator)
+  - Hexagon simulator for testing without hardware
+
+  4.1  Login via QPM CLI:
+
+         qpm-cli --login
+
+  4.2  Accept the license:
+
+         qpm-cli --license-activate qualcomm_hexagon_sdk
+
+  4.3  Install the SDK:
+
+         qpm-cli --extract qualcomm_hexagon_sdk
+
+       This installs to ~/Qualcomm/Hexagon_SDK/<version> by default.
+
+  4.4  Set up environment variables.  Add to your ~/.bashrc:
+
+         export HEXAGON_SDK_ROOT=~/Qualcomm/Hexagon_SDK/5.x.x.x
+         export HEXAGON_TOOLS_ROOT=${HEXAGON_SDK_ROOT}/tools
+         export PATH=${HEXAGON_TOOLS_ROOT}/bin:${PATH}
+
+  4.5  Source the SDK environment (from SDK root):
+
+         cd $HEXAGON_SDK_ROOT
+         source setup_sdk_env.source
+
+  4.6  Verify the toolchain:
+
+         hexagon-clang++ --version
+         qaic --version
+
+  4.7  Install required Ubuntu packages (if not already present):
+
+         sudo apt-get update
+         sudo apt-get install -y \
+             build-essential \
+             python3 \
+             python3-pip \
+             cmake \
+             ninja-build \
+             git \
+             adb \
+             libncurses5 \
+             lib32z1 \
+             lib32ncurses-dev
+
+
+================================================================================
+5. INSTALL QNN SDK (QUALCOMM AI ENGINE DIRECT)
+================================================================================
+
+Only needed if you want to run neural network models on the DSP.
+NOT needed for the vec_dot_example.
+
+  5.1  Go to https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk
+  5.2  Download the QNN SDK for Linux (or use QPM3):
+
+         qpm-cli --license-activate qualcomm_ai_engine_direct
+         qpm-cli --extract qualcomm_ai_engine_direct
+
+  5.3  Add to ~/.bashrc:
+
+         export QNN_SDK_ROOT=~/Qualcomm/AIStack/QNN/<version>
+         export PATH=${QNN_SDK_ROOT}/bin:${PATH}
+         export LD_LIBRARY_PATH=${QNN_SDK_ROOT}/lib/x86_64-linux-clang:${LD_LIBRARY_PATH}
+
+  5.4  Verify:
+
+         qnn-onnx-converter --help
+         qnn-model-lib-generator --help
+
+  Key QNN tools:
+    qnn-onnx-converter         Convert ONNX model to QNN format
+    qnn-model-lib-generator    Compile QNN model to target-specific .so / .bin
+    qnn-context-binary-generator  Create serialised context binary for DSP
+    qnn-net-run                Run inference on host for testing
+
+
+================================================================================
+6. INSTALL ANDROID NDK
+================================================================================
+
+Needed to cross-compile the ARM-side host binary.
+
+  6.1  Go to https://developer.android.com/ndk/downloads
+  6.2  Download the Linux zip (latest stable: r29, or LTS: r27d):
+
+         wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+
+  6.3  Extract:
+
+         unzip android-ndk-r27d-linux.zip -d ~/
+
+  6.4  Add to ~/.bashrc:
+
+         export NDK_ROOT=~/android-ndk-r27d
+         export PATH=${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}
+
+  6.5  Verify:
+
+         aarch64-linux-android30-clang++ --version
+
+
+================================================================================
+7. VERIFY FULL SETUP
+================================================================================
+
+After installing all tools and sourcing ~/.bashrc:
+
+  # Hexagon DSP compiler
+  hexagon-clang++ --version
+
+  # FastRPC IDL compiler
+  qaic --version
+
+  # ARM cross-compiler (Android NDK)
+  aarch64-linux-android30-clang++ --version
+
+  # QNN tools (only if QNN SDK installed)
+  qnn-onnx-converter --help
+
+  # ADB (Android Debug Bridge)
+  adb version
+
+If all five commands succeed, your environment is ready.
+
+
+================================================================================
+8. BUILD & DEPLOY WORKFLOW (QUICK REFERENCE)
+================================================================================
+
+  Step  Action                        Command
+  ----  ----------------------------  ------------------------------------------
+  1     Build DSP .so                 cd vec_dot_example && ./build_dsp.sh
+  2     Build ARM binary              ./build_arm.sh
+  3     Push DSP lib to device        adb push build_dsp/libvec_dot_skel.so \
+                                          /vendor/lib/rfsa/dsp/
+  4     Push ARM binary to device     adb push build_arm/vec_dot_arm \
+                                          /data/local/tmp/
+  5     Run on device                 adb shell '/data/local/tmp/vec_dot_arm 1024'
+
+
+================================================================================
+9. ENVIRONMENT VARIABLES SUMMARY (~/.bashrc)
+================================================================================
+
+  # Hexagon SDK
+  export HEXAGON_SDK_ROOT=~/Qualcomm/Hexagon_SDK/5.x.x.x
+  export HEXAGON_TOOLS_ROOT=${HEXAGON_SDK_ROOT}/tools
+  export HEXAGON_ARCH=v68
+
+  # QNN SDK (optional, for neural network inference)
+  export QNN_SDK_ROOT=~/Qualcomm/AIStack/QNN/2.31.0
+
+  # Android NDK
+  export NDK_ROOT=~/android-ndk-r27d
+
+  # PATH
+  export PATH=${HEXAGON_TOOLS_ROOT}/bin:${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin:${QNN_SDK_ROOT}/bin:${PATH}
+
+
+================================================================================
+10. TROUBLESHOOTING
+================================================================================
+
+  Problem                             Solution
+  ----------------------------------  ------------------------------------------
+  QPM2 fails on Ubuntu 22.04         Use QPM3 instead (see Section 3)
+  qpm-cli: command not found         Restart terminal or source ~/.bashrc
+  hexagon-clang++: not found         Check HEXAGON_TOOLS_ROOT points to correct
+                                     version under the SDK
+  qaic: not found                    qaic is inside ${HEXAGON_SDK_ROOT}/tools/bin
+  adb: device not found              Enable USB debugging on the Snapdragon board
+                                     and check: adb devices
+  DSP lib not loading on device      Ensure .so is pushed to /vendor/lib/rfsa/dsp/
+                                     or /usr/lib/rfsa/adsp/ depending on the board
+  Permission denied on DSP           May need to sign the .so for production DSPs.
+                                     Use unsigned path for development:
+                                     /vendor/lib/rfsa/dsp/testsig-<serial>.so
+
+
+================================================================================
+11. USEFUL LINKS
+================================================================================
+
+  Qualcomm Developer Portal           https://developer.qualcomm.com
+  Hexagon SDK Documentation            https://developer.qualcomm.com/software/hexagon-dsp-sdk
+  QNN SDK Documentation                https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk
+  QPM3 Download                        https://qpm.qualcomm.com
+  Android NDK Downloads                https://developer.android.com/ndk/downloads
+  Qualcomm Support Forums              https://mysupport.qualcomm.com/supportforums
+  Qualcomm Account Registration        https://myaccount.qualcomm.com/signup
+
+================================================================================
